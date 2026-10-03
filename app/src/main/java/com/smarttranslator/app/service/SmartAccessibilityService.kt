@@ -1,76 +1,112 @@
-package com.smarttranslator.app.ui.screens
+package com.smarttranslator.app.service
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CameraScreen(navController: NavController) {
-    var recognizedText by remember { mutableStateOf("استخراج النص من الصورة باستخدام OCR سيظهر هنا.") }
-    val pickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
-            if (uri != null) {
-                recognizedText = "تم اختيار صورة. سيتم تنفيذ OCR/الترجمة هنا لاحقًا باستخدام ML Kit."
-            }
+/**
+ * Enhanced AccessibilityService that collects visible text from the active window,
+ * debounces rapid updates, filters out the app's own package, and forwards a
+ * cleaned summary to the FloatingTranslatorService via Intent extras so the
+ * overlay can display the detected text.
+ *
+ * Notes:
+ * - This service only reads text available through AccessibilityNodeInfo. Some
+ *   apps may not expose text nodes depending on their implementation.
+ * - The service protects against flooding by debouncing updates and only
+ *   sending when the text meaningfully changes.
+ */
+class SmartAccessibilityService : AccessibilityService() {
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var pendingRunnable: Runnable? = null
+    private var lastSentText: String? = null
+
+    // Debounce interval to avoid updating the overlay too often
+    private val DEBOUNCE_MS = 800L
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        serviceInfo = serviceInfo.apply {
+            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
+            feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
+            flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            // Consider setting packageNames to limit monitored packages if desired
         }
-    )
+        Log.d("SmartAccessibility", "service connected")
+    }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("ترجمة الصور / OCR") })
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(padding),
-            contentAlignment = Alignment.Center
-        ) {
-            Card(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("التقاط صورة أو اختيار صورة من المعرض")
-                    Text("سيتم استخراج النص عبر ML Kit OCR ثم ترجمته.")
-                    Text(recognizedText)
-                    Button(onClick = { /* open camera */ }) {
-                        Text("فتح الكاميرا")
-                    }
-                    Button(onClick = {
-                        pickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }) {
-                        Text("اختيار صورة")
-                    }
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event == null) return
+
+        // Ignore events coming from our own app to avoid loops
+        val pkg = event.packageName?.toString() ?: ""
+        if (pkg.startsWith("com.smarttranslator")) return
+
+        val root = rootInActiveWindow ?: return
+
+        // Collect visible text from the active window
+        val raw = collectTextFromNode(root)
+        val cleaned = raw.replace(Regex("\\s+"), " ").trim()
+
+        if (cleaned.isBlank()) return
+        if (cleaned == lastSentText) return
+
+        // Debounce updates so we don't spam the overlay/service
+        pendingRunnable?.let { handler.removeCallbacks(it) }
+        val runnable = Runnable {
+            try {
+                val toSend = cleaned.take(300) // limit size for overlay readability
+                lastSentText = toSend
+
+                val intent = Intent(this, FloatingTranslatorService::class.java).apply {
+                    putExtra("overlay_text", toSend)
                 }
+
+                // Use startService; FloatingTranslatorService is a foreground service so this is allowed
+                startService(intent)
+                Log.d("SmartAccessibility", "forwarded text to overlay: ${toSend}")
+            } catch (t: Throwable) {
+                Log.w("SmartAccessibility", "failed to forward overlay text: ${t.message}", t)
             }
         }
+
+        pendingRunnable = runnable
+        handler.postDelayed(runnable, DEBOUNCE_MS)
+    }
+
+    override fun onInterrupt() {
+        // Clear any pending work
+        pendingRunnable?.let { handler.removeCallbacks(it) }
+        pendingRunnable = null
+    }
+
+    // Safe traversal that avoids extremely deep recursion by limiting depth
+    private fun collectTextFromNode(node: AccessibilityNodeInfo?, depth: Int = 0): String {
+        if (node == null) return ""
+        if (depth > 50) return "" // guard against pathological view hierarchies
+
+        val builder = StringBuilder()
+
+        try {
+            if (!node.text.isNullOrBlank()) {
+                builder.append(node.text).append(' ')
+            }
+
+            val childCount = node.childCount
+            for (i in 0 until childCount) {
+                val child = node.getChild(i) ?: continue
+                builder.append(collectTextFromNode(child, depth + 1))
+            }
+        } catch (t: Throwable) {
+            Log.w("SmartAccessibility", "error while traversing node: ${t.message}")
+        }
+
+        return builder.toString()
     }
 }
