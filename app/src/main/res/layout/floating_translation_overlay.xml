@@ -27,6 +27,12 @@
             android:text="نسخ" />
 
         <Button
+            android:id="@+id/speakButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="نطق" />
+
+        <Button
             android:id="@+id/closeButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
