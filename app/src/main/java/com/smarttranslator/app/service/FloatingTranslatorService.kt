@@ -8,10 +8,10 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
-import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
@@ -66,7 +66,8 @@ class FloatingTranslatorService : Service() {
         val copyButton = overlayView?.findViewById<Button>(R.id.copyButton)
         val speakButton = overlayView?.findViewById<Button>(R.id.speakButton)
 
-        textView?.text = "الترجمة العائمة\nجاهزة"
+        val text = intent?.getStringExtra("overlay_text") ?: "الترجمة العائمة\nجاهزة"
+        textView?.text = text
 
         overlayView?.setOnTouchListener { _, event ->
             when (event.actionMasked) {
@@ -88,8 +89,14 @@ class FloatingTranslatorService : Service() {
         }
 
         closeButton?.setOnClickListener { stopSelf() }
-        copyButton?.setOnClickListener { /* future copy to clipboard */ }
-        speakButton?.setOnClickListener { /* future TTS hook */ }
+        copyButton?.setOnClickListener { Log.d("Overlay", "copy clicked") }
+        speakButton?.setOnClickListener { Log.d("Overlay", "speak clicked") }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val text = intent?.getStringExtra("overlay_text") ?: "الترجمة العائمة\nجاهزة"
+        overlayView?.findViewById<TextView>(R.id.translationText)?.text = text
+        return START_STICKY
     }
 
     override fun onDestroy() {
