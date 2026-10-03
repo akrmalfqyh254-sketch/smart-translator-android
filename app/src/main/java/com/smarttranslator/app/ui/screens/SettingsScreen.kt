@@ -2,7 +2,9 @@ package com.smarttranslator.app.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,7 +57,13 @@ fun SettingsScreen(navController: NavController) {
             ToggleRow(label = "الترجمة العائمة", checked = floatingEnabled) {
                 floatingEnabled = it
                 if (it) {
-                    AppActions.startFloatingOverlay(context)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+                        context.startActivity(intent)
+                        Toast.makeText(context, "يرجى تفعيل إذن الفقاعة العائمة", Toast.LENGTH_SHORT).show()
+                    } else {
+                        AppActions.startFloatingOverlay(context)
+                    }
                 }
             }
             ToggleRow(label = "المعالجة المحلية فقط", checked = localOnly) { localOnly = it }
@@ -77,10 +85,7 @@ fun SettingsScreen(navController: NavController) {
                     }
                     Button(
                         onClick = {
-                            val intent = Intent(
-                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                Uri.parse("package:${context.packageName}")
-                            )
+                            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
                             context.startActivity(intent)
                         }
                     ) {
