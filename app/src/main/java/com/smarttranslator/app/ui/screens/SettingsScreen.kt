@@ -3,6 +3,7 @@ package com.smarttranslator.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -56,7 +57,7 @@ fun SettingsScreen(navController: NavController) {
                     Text("خصوصية المستخدم")
                     Text("لا يتم جمع كلمات المرور أو تسجيل الشاشة دون موافقة صريحة. المعالجة المحلية تفضل قدر الإمكان.")
                     Button(onClick = { /* open accessibility settings */ }) {
-                        Text("تفعيلAccessibility")
+                        Text("تفعيل Accessibility")
                     }
                 }
             }
@@ -67,7 +68,7 @@ fun SettingsScreen(navController: NavController) {
 @Composable
 private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        androidx.compose.foundation.layout.Row(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),

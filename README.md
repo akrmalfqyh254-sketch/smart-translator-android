@@ -1,43 +1,65 @@
 # Smart Translator
 
-Smart Translator is a free native Android app built with Kotlin, Jetpack Compose, Material 3, Room, CameraX, OCR, accessibility features, and local-first translation architecture.
+Smart Translator is a free native Android app for Arabic-first translation with a modern Material 3 UI, local-first translation architecture, OCR image support, accessibility overlay, and local history/favorites.
 
-Features included in this starter project:
-- Arabic RTL UI
-- Free local-first translation architecture
-- Translation text field and result card
-- History and favorites screens
-- Settings with dark mode and privacy toggles
-- Camera/OCR placeholder screens
-- AccessibilityService stub for floating translation actions
-- Room database for local translation history
-- Manifest declarations for permissions and accessibility support
-
-Project package:
+Application package:
 - com.smarttranslator.app
 - version: 1.0.0
 
-Requirements:
-- Android Studio Ladybug or newer recommended
+Main included features:
+- Arabic RTL UI
+- Translation text box with source/target language selection
+- Copy translated text
+- Favorites/history screens
+- OCR placeholder flow for image translation
+- AccessibilityService and floating-translation groundwork
+- Room database foundation for translation history
+- Settings screen with dark mode and privacy notices
+- Local-first translation design, suitable for future engine swapping
+
+Technical stack:
+- Kotlin
+- Android SDK 34
+- Jetpack Compose
+- Material 3
+- Room
+- Android CameraX
+- ML Kit OCR / Translation hooks
+- AccessibilityService
+- MediaProjection foundation
+
+Build requirements:
+- Android Studio Iguana / Ladybug or newer
 - JDK 17
 - Android SDK 34
 
-Build steps:
+Quick build steps:
 1. Open the project in Android Studio.
-2. Let Gradle sync the project.
-3. Choose a device or emulator.
-4. Run the app using the debug build.
+2. Allow Gradle to sync.
+3. Use a device or emulator with API 23+.
+4. Run the app in Debug mode.
 
-Release / Signing:
-1. Generate a keystore.
-2. Add signing config in app/build.gradle.kts or use Android Studio Generate Signed Bundle/APK.
-3. Build a release APK or AAB through Android Studio.
+Release build and signing:
+1. Generate a keystore:
+   keytool -genkeypair -v -keystore smart-translator-release.jks -alias smarttranslator -keyalg RSA -keysize 2048 -validity 10000
+2. In Android Studio, use Build > Generate Signed Bundle / APK.
+3. Or add a signingConfig block in app/build.gradle.kts.
+4. Build a Release APK or AAB for Google Play submission.
 
-Privacy notes:
-- No username or password collection is included in this starter app.
-- Accessibility and screen capture are designed to require explicit user consent before network or overlay features are active.
-- OCR and translation are local-first and can be swapped for a different provider later.
+Privacy and consent requirements:
+- No password collection is included.
+- Accessibility and screen capture are designed to require explicit user approval.
+- The app is local-first and should avoid collecting screen content unless the user opts in.
+- The translation engine is designed so you can replace the default placeholder implementation with a real local or remote provider later.
 
-Notes:
-- This project is intentionally structured as a solid foundation for the full translator application you requested.
-- The complete floating overlay and screen-capture flow can be extended in production based on your final approval and Android testing environment.
+Features planned for full production completion:
+- Real translation engine integration (local ML Kit or online free translator backend)
+- Speech-to-text using Android recognition APIs
+- Text-to-speech playback
+- Camera capture with OCR processing
+- Accessibility floating bubble overlay with copy/speak/swap/close actions
+- Screenshot/media projection translation flow
+- Secure release signing and Play Store metadata
+
+Important note:
+This repo contains a strong foundation for the requested translator app, but a true APK/AAB bundle still requires a machine with Android SDK + Gradle tooling available to build the signed release artifacts.

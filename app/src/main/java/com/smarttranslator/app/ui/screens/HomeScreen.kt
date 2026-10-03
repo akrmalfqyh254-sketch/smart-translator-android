@@ -2,7 +2,6 @@ package com.smarttranslator.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,8 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CopyAll
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
@@ -37,18 +36,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.smarttranslator.app.model.Language
+import com.smarttranslator.app.model.SupportedLanguages
+import com.smarttranslator.app.translation.TranslationEngine
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-    var sourceText by remember { mutableStateOf("مرحبا بالعالم، أرغب في ترجمة هذا النص إلى الإنجليزية.") }
-    var sourceLanguage by remember { mutableStateOf("العربية") }
-    var targetLanguage by remember { mutableStateOf("الإنجليزية") }
-    val translationText by remember(sourceText) {
-        mutableStateOf("Hello world, I would like to translate this text into English.")
+    var sourceText by remember {
+        mutableStateOf("مرحبا بالعالم، أريد ترجمة هذا النص إلى الإنجليزية بسرعة وبشكل دقيق.")
+    }
+    var sourceLanguage by remember { mutableStateOf(SupportedLanguages.list.first { it.code == "ar" }) }
+    var targetLanguage by remember { mutableStateOf(SupportedLanguages.list.first { it.code == "en" }) }
+    val engine = remember { TranslationEngine() }
+    val clipboard = LocalClipboardManager.current
+
+    val translatedText by remember(sourceText, sourceLanguage, targetLanguage) {
+        mutableStateOf(engine.translateText(sourceText, sourceLanguage, targetLanguage))
     }
 
     Scaffold(
@@ -72,7 +81,9 @@ fun HomeScreen(navController: NavController) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Card {
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -82,11 +93,15 @@ fun HomeScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = sourceLanguage, fontWeight = FontWeight.Bold)
-                        IconButton(onClick = { /* toggle language */ }) {
+                        LanguagePill(language = sourceLanguage) { sourceLanguage = it }
+                        IconButton(onClick = {
+                            val temp = sourceLanguage
+                            sourceLanguage = targetLanguage
+                            targetLanguage = temp
+                        }) {
                             Icon(Icons.Default.SwapHoriz, contentDescription = "تبديل اللغات")
                         }
-                        Text(text = targetLanguage, fontWeight = FontWeight.Bold)
+                        LanguagePill(language = targetLanguage) { targetLanguage = it }
                     }
 
                     OutlinedTextField(
@@ -101,11 +116,11 @@ fun HomeScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(onClick = { /* speech to text */ }) {
+                        Button(onClick = { /* speech recognition hook */ }, modifier = Modifier.weight(1f)) {
                             Icon(Icons.Default.MicNone, contentDescription = null)
                             Text("صوت")
                         }
-                        Button(onClick = { /* translate */ }) {
+                        Button(onClick = { /* translate */ }, modifier = Modifier.weight(1f)) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Text("ترجمة")
                         }
@@ -113,13 +128,24 @@ fun HomeScreen(navController: NavController) {
                 }
             }
 
-            Card {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("الترجمة", fontWeight = FontWeight.Bold)
-                    Text(translationText)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("الترجمة", fontWeight = FontWeight.Bold)
+                        IconButton(onClick = {
+                            clipboard.setText(AnnotatedString(translatedText))
+                        }) {
+                            Icon(Icons.Default.CopyAll, contentDescription = "نسخ")
+                        }
+                    }
+                    Text(translatedText)
                 }
             }
 
@@ -151,5 +177,15 @@ fun HomeScreen(navController: NavController) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LanguagePill(
+    language: Language,
+    onLanguageSelected: (Language) -> Unit
+) {
+    Button(onClick = { onLanguageSelected(language) }) {
+        Text(language.nativeLabel)
     }
 }
