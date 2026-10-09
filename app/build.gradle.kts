@@ -1,4 +1,4 @@
-plugins {
+8f3c45880e3d12c1c037c206ff30e83e0815a7d9plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
